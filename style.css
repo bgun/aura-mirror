@@ -1,0 +1,13 @@
+html, body {
+  background: #222;
+  margin: 0;
+  padding: 0;
+}
+canvas {
+  display: block;
+  margin: 0 auto;
+}
+video {
+  border: 10px solid red;
+  border-radius: 100px;
+}
