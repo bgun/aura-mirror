@@ -14,8 +14,8 @@ let camShader;
 let numLayers = 30;
 let layers = [];
 let index1 = 0;
-let index2 = numLayers/3; // 30
-let index3 = numLayers/3 * 2; // 60
+let index2 = numLayers/3; // 10
+let index3 = numLayers/3 * 2; // 20
 
 function preload() {
   facemesh = ml5.facemesh(); // Load the ML5.js FaceMesh model
@@ -132,7 +132,7 @@ function draw() {
     videoCapture = null;
   }
 
-  // Show all keypoints as dots
+  // Facemesh: Show all keypoints as dots
   /*
   ratioW = windowWidth / webcamCapture.width;
   ratioH = windowHeight / webcamCapture.height;
@@ -149,24 +149,13 @@ function draw() {
   }
   */
 
-  // Mirror the display
-  //scale(-1,1);
-
-  /*
-  texture(webcamCapture);
-  rect(-windowWidth/2,-windowHeight/2,windowWidth,windowHeight);
-  */
   // draw the camera on the current layer
-
   // use ml5 to pick out only the face and expand to fill the window
   if(facebox) {
-    faceCapture = createGraphics(windowWidth, windowHeight);
-    faceCapture.image(webcamCapture, 0, 0, windowWidth, windowHeight, facebox.xMin-(faceshim), facebox.yMin-(faceshim), facebox.width+(faceshim*2), facebox.height+(faceshim*2));
+    layers[index1].image(webcamCapture, 0, 0, windowWidth, windowHeight, facebox.xMin-(faceshim), facebox.yMin-(faceshim), facebox.width+(faceshim*2), facebox.height+(faceshim*2));
   } else {
-    faceCapture = createGraphics(windowWidth, windowHeight);
+    layers[index1].image(webcamCapture, 0, 0, windowWidth, windowHeight);
   }
-
-  layers[index1].image(faceCapture, 0, 0, width, height);
 
   shaderLayer.shader(camShader);
   camShader.setUniform('tex0', layers[index1]);
