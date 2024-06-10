@@ -1,16 +1,17 @@
 let webcamCapture; // Variable to store the webcam capture
 let videoCapture;  // variable to store the video download file
+let faceCapture;
 let facemesh; // Variable to store the ML5.js FaceMesh model
 let faces = []; // Array to store detected faces
 let frameImage, overlayImage;
 let ratioW, ratioH;
 let predictions = [];
 let facebox;
-let faceshim = 50;
+let faceshim = 100;
 let recording = false;
 let camShader;
 
-let numLayers = 60;
+let numLayers = 30;
 let layers = [];
 let index1 = 0;
 let index2 = numLayers/3; // 30
@@ -159,10 +160,13 @@ function draw() {
 
   // use ml5 to pick out only the face and expand to fill the window
   if(facebox) {
-    faceCapture = image(webcamCapture, 0, 0, windowWidth, windowHeight, facebox.xMin-(faceshim), facebox.yMin-(faceshim), facebox.width+(faceshim*2), facebox.height+(faceshim*2));
+    faceCapture = createGraphics(windowWidth, windowHeight);
+    faceCapture.image(webcamCapture, 0, 0, windowWidth, windowHeight, facebox.xMin-(faceshim), facebox.yMin-(faceshim), facebox.width+(faceshim*2), facebox.height+(faceshim*2));
+  } else {
+    faceCapture = createGraphics(windowWidth, windowHeight);
   }
 
-  layers[index1].image(webcamCapture, 0, 0, width, height);
+  layers[index1].image(faceCapture, 0, 0, width, height);
 
   shaderLayer.shader(camShader);
   camShader.setUniform('tex0', layers[index1]);
@@ -186,6 +190,8 @@ function draw() {
 
   // add frame and words
   image(frameImage,0,0,windowWidth, windowHeight);
+
+  //filter(INVERT);
 
   /*
   push();
