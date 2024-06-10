@@ -2,16 +2,29 @@ let webcamCapture; // Variable to store the webcam capture
 let videoCapture;  // variable to store the video download file
 let facemesh; // Variable to store the ML5.js FaceMesh model
 let faces = []; // Array to store detected faces
-let frameImage;
+let frameImage, overlayImage;
 let ratioW, ratioH;
 let predictions = [];
 let facebox;
-let faceshim = 10;
+let faceshim = 50;
 let recording = false;
+let camShader;
+
+let numLayers = 60;
+let layers = [];
+let index1 = 0;
+let index2 = numLayers/3; // 30
+let index3 = numLayers/3 * 2; // 60
 
 function preload() {
   facemesh = ml5.facemesh(); // Load the ML5.js FaceMesh model
   frameImage = loadImage('assets/blur-circle.png');
+  overlayImage = loadImage('assets/overlay.png');
+
+  camShader = loadShader(
+    './effect.vert',
+    './effect.frag'
+  );
 }
 
 console.log(awsCreds);
@@ -79,15 +92,20 @@ function setup() {
 
   // Create a canvas the size of the window
   createCanvas(windowWidth, windowHeight);
-  console.log("Window", windowWidth, windowHeight);
+  noStroke();
+  shaderLayer = createGraphics(windowWidth, windowHeight, WEBGL);
 
-  // Create a video capture object
-  webcamCapture = createCapture(VIDEO);
-  //video.size(windowWidth, windowHeight);
+  for (let i = 0; i < numLayers; i++){
+    let l = createGraphics(windowWidth, windowHeight);
+    layers.push(l);
+  }
+
+  // Create a video capture object. By default captures both
+  // audio and video; pass VIDEO or AUDIO for just one or the other.
+  webcamCapture = createCapture();
 
   // Set the size of the video capture to match the canvas size
   webcamCapture.size(640,480);
-  // Hide the video element
   webcamCapture.hide();
 
   facemesh.detectStart(webcamCapture, gotFaces); // Start face detection on the video feed
@@ -95,10 +113,12 @@ function setup() {
 
 function draw() {
   // Mirror the display
+  /*
   translate(width,0);
   scale(-1,1);
+  */
 
-  image(webcamCapture, 0, 0, windowWidth, windowHeight);
+  //image(webcamCapture, 0, 0, windowWidth, windowHeight);
 
   if (recording && !videoCapture) {
     console.log("Recording started.");
@@ -111,8 +131,8 @@ function draw() {
     videoCapture = null;
   }
 
-  /*
   // Show all keypoints as dots
+  /*
   ratioW = windowWidth / webcamCapture.width;
   ratioH = windowHeight / webcamCapture.height;
 
@@ -128,26 +148,53 @@ function draw() {
   }
   */
 
+  // Mirror the display
+  //scale(-1,1);
+
   /*
-  const capture = P5Capture.getInstance();
-  capture.start({
-    format: "gif",
-    duration: 100,
-  });
+  texture(webcamCapture);
+  rect(-windowWidth/2,-windowHeight/2,windowWidth,windowHeight);
   */
+  // draw the camera on the current layer
 
   // use ml5 to pick out only the face and expand to fill the window
   if(facebox) {
-    image(webcamCapture, 0, 0, windowWidth, windowHeight, facebox.xMin-(faceshim), facebox.yMin-(faceshim), facebox.width+(faceshim*2), facebox.height+(faceshim*2));
+    faceCapture = image(webcamCapture, 0, 0, windowWidth, windowHeight, facebox.xMin-(faceshim), facebox.yMin-(faceshim), facebox.width+(faceshim*2), facebox.height+(faceshim*2));
   }
 
-  // playing with filters
-  filter(INVERT);
-  filter(BLUR, 5);
-  filter(POSTERIZE, 7);
+  layers[index1].image(webcamCapture, 0, 0, width, height);
+
+  shaderLayer.shader(camShader);
+  camShader.setUniform('tex0', layers[index1]);
+  camShader.setUniform('tex1', layers[index2]);
+  camShader.setUniform('tex2', layers[index3]);
+  // rect gives us some geometry on the screen
+  shaderLayer.rect(0,0,width, height);
+
+  // render the shaderlayer to the screen
+  image(shaderLayer, 0,0, width, height);
+
+  // increase all indices by 1, resetting if it goes over layers.length
+  // the index runs in a circle 0, 1, 2, ... 29, 30, 0, 1, 2, etc.
+  // index1
+  // index2 will be somewhere in the past
+  // index3 will be even further into the past
+  index1 = (index1 + 1)  % layers.length;
+  index2 = (index2 + 1) % layers.length;
+  index3 = (index3 + 1) % layers.length;
+
 
   // add frame and words
   image(frameImage,0,0,windowWidth, windowHeight);
+
+  /*
+  push();
+  imageMode(CENTER);
+  translate(windowWidth/2, windowHeight/2);
+  rotate(millis() / 10000 * PI / 2);
+  image(overlayImage,0,0,windowWidth+300, windowHeight+300);
+  pop();
+  */
 }
 
 // Callback function to handle face detection results
@@ -157,4 +204,8 @@ function gotFaces(results) {
     predictions = results[0].keypoints;
     facebox = results[0].box;
   }
+}
+
+function windowResized(){
+  resizeCanvas(windowWidth, windowHeight);
 }
