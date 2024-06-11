@@ -3,11 +3,11 @@ let videoCapture;  // variable to store the video download file
 let faceCapture;
 let facemesh; // Variable to store the ML5.js FaceMesh model
 let faces = []; // Array to store detected faces
-let frameImage, overlayImage;
+let frameImage, overlayImage, noImage;
 let ratioW, ratioH;
 let predictions = [];
-let facebox;
-let faceshim = 100;
+let faceTop, faceBottom, faceLeft, faceRight;
+let faceshim = 30;
 let recording = false;
 let camShader;
 
@@ -19,8 +19,9 @@ let index3 = numLayers/3 * 2; // 20
 
 function preload() {
   facemesh = ml5.facemesh(); // Load the ML5.js FaceMesh model
-  frameImage = loadImage('assets/blur-circle.png');
-  overlayImage = loadImage('assets/overlay.png');
+  frameImage = loadImage('./assets/blur-circle.png');
+  noImage = loadImage('./assets/no-image.png');
+  overlayImage = loadImage('./assets/overlay.png');
 
   camShader = loadShader(
     './effect.vert',
@@ -109,7 +110,25 @@ function setup() {
   webcamCapture.size(640,480);
   webcamCapture.hide();
 
-  facemesh.detectStart(webcamCapture, gotFaces); // Start face detection on the video feed
+  facemesh = ml5.facemesh(webcamCapture, () => {
+    console.log("FaceMesh model loaded");
+    facemesh.on('face', (results) => {
+      if (results && results.length === 1) {
+        //console.log("FACE FOUND", results);
+        let facebox = results[0].boundingBox;
+        faceTop = facebox.topLeft[0][0];
+        faceLeft = facebox.topLeft[0][1];
+        faceBottom = facebox.bottomRight[0][0];
+        faceRight = facebox.bottomRight[0][1];
+      } else {
+        //console.log("NO FACE");
+        faceTop = null;
+        faceLeft = null;
+        faceBottom = null;
+        faceRight = null;
+      }
+    });
+  });
 }
 
 function draw() {
@@ -118,8 +137,6 @@ function draw() {
   translate(width,0);
   scale(-1,1);
   */
-
-  //image(webcamCapture, 0, 0, windowWidth, windowHeight);
 
   if (recording && !videoCapture) {
     console.log("Recording started.");
@@ -132,29 +149,20 @@ function draw() {
     videoCapture = null;
   }
 
-  // Facemesh: Show all keypoints as dots
-  /*
-  ratioW = windowWidth / webcamCapture.width;
-  ratioH = windowHeight / webcamCapture.height;
-
-  if(predictions) {
-    for (let i = 0; i < predictions.length; i += 1) {
-      if(predictions[i]) {
-        let x = predictions[i].x * ratioW;
-        let y = predictions[i].y * ratioH;
-        fill(255, 255, 255);
-        ellipse(x, y, 5, 5);
-      }
-    }
-  }
-  */
 
   // draw the camera on the current layer
   // use ml5 to pick out only the face and expand to fill the window
-  if(facebox) {
-    layers[index1].image(webcamCapture, 0, 0, windowWidth, windowHeight, facebox.xMin-(faceshim), facebox.yMin-(faceshim), facebox.width+(faceshim*2), facebox.height+(faceshim*2));
+  if (faceTop) {
+    layers[index1].image(
+      webcamCapture,
+      0, 0, windowWidth, windowHeight,
+      faceTop-faceshim,
+      faceLeft-faceshim,
+      faceBottom-faceTop+(faceshim*2),
+      faceRight-faceLeft+(faceshim*2)
+    );
   } else {
-    layers[index1].image(webcamCapture, 0, 0, windowWidth, windowHeight);
+    layers[index1].image(noImage, 0, 0, windowWidth, windowHeight);
   }
 
   shaderLayer.shader(camShader);
@@ -176,11 +184,25 @@ function draw() {
   index2 = (index2 + 1) % layers.length;
   index3 = (index3 + 1) % layers.length;
 
-
-  // add frame and words
+  // add frame
   image(frameImage,0,0,windowWidth, windowHeight);
 
-  //filter(INVERT);
+  // Facemesh: Show all keypoints as dots
+  /*
+  ratioW = windowWidth / webcamCapture.width;
+  ratioH = windowHeight / webcamCapture.height;
+
+  if(predictions) {
+    for (let i = 0; i < predictions.length; i += 1) {
+      if(predictions[i]) {
+        let x = predictions[i].x * ratioW;
+        let y = predictions[i].y * ratioH;
+        fill(255, 255, 255);
+        ellipse(x, y, 5, 5);
+      }
+    }
+  }
+  */
 
   /*
   push();
@@ -190,15 +212,6 @@ function draw() {
   image(overlayImage,0,0,windowWidth+300, windowHeight+300);
   pop();
   */
-}
-
-// Callback function to handle face detection results
-function gotFaces(results) {
-  faces = results; // Store the detected faces in the faces array
-  if(results && results[0]) {
-    predictions = results[0].keypoints;
-    facebox = results[0].box;
-  }
 }
 
 function windowResized(){
